@@ -1,4 +1,7 @@
 import group_theory.subgroup.basic
+import analysis.normed.group.basic
+import topology.metric_space.basic
+
 import group_theory.free_group
 import data.set.basic
 import algebra.hom.group
@@ -11,263 +14,296 @@ import data.real.ennreal
 import order.complete_lattice
 import order.bounded_order
 
+import fg_norm
+
 noncomputable theory
 
-variables {G : Type*} [group G] [decidable_eq G] 
+theorem nat.Inf_le_Inf {s t : set ℕ} (hs : s.nonempty) (ht : s ⊆ t) : Inf t ≤ Inf s 
+:= nat.Inf_le $ ht $ nat.Inf_mem hs
 
 @[class]
-structure generated_group (G : Type*) [group G] :=
-  (gens : set G)
-  (closure_eq_top : subgroup.closure gens = ⊤) 
+structure generated_group (G : Type*) extends group G :=
+(gens : set G)
+(closure_eq_top : subgroup.closure gens = ⊤) 
 
-instance {α : Type*} : generated_group (free_group α) := 
-{ gens := set.range free_group.of, 
-  closure_eq_top := by begin
-    rw [← free_group.lift.range_eq_closure, monoid_hom.range_top_iff_surjective ],
-    intro x, use x,
-    exact free_group.lift.of_eq x,
-  end
-}
+variables {G : Type*} [generated_group G] [decidable_eq G] 
 
-variables (GG : generated_group G)
+namespace generated_group
 
-/-- `of` is the canonical injection from the type to the free group over that type by sending each
-element to the equivalence class of the letter that is the element. -/
-def of (x : free_group GG.gens) : G := begin
+open generated_group
+
+def of (x : free_group (gens : set G)) : G := begin
   refine free_group.lift _ x,
   intro g,
   use g,
 end
 
-def words (g : G) : set (free_group GG.gens) := { w : free_group GG.gens | of GG w = g }
-
-def words_nonempty (g : G) : (words GG g).nonempty := begin
-  have h : ∃ w : free_group GG.gens, w ∈ words GG g, {
-    let hk := GG.closure_eq_top,
-
-    let f := free_group.lift (id : GG.gens → GG.gens),
-
-    rw [← free_group.lift.range_eq_closure, monoid_hom.range_top_iff_surjective ],
-    intro x, use x,
-    exact free_group.lift.of_eq x,
-    
-    sorry,
-  },
-  exact h,
-end  
-
--- should be in terms of has_norm
-def word_norm (g : G) : nat := Inf $ (list.length ∘ free_group.to_word) '' (words GG g)
-
--- this is surely much too long
-lemma norm_one_eq_zero : word_norm GG (1 : G) = 0 :=
+def of_mul (x : free_group (gens : set G)) (y : free_group (gens : set G)) : of (x * y) = of x * of y :=
 begin
-  set ws := words GG 1 with hws,
-  
-  suffices : 0 ∈ (list.length ∘ free_group.to_word) '' ws,
-  { 
-    rw [← nonpos_iff_eq_zero],
-    refine nat.Inf_le this , 
-  },
-  refine ⟨ [], _ ⟩, 
-  simp only [list.length, set.mem_image, eq_self_iff_true, and_true],
-  use 1,
-
-  have h2 : (1 : free_group GG.gens) ∈ ws,
-  { rw hws,
-    simp [of, words], },
-  refine ⟨ h2, _ ⟩,
-
-  change (free_group.mk list.nil).to_word = list.nil,
-  rw ← free_group.red.nil_iff,
-  unfold free_group.to_word,
-  
-  simp only [free_group.quot_lift_mk],
-  rw free_group.red.nil_iff ,
-  unfold free_group.reduce,
-end
-
-lemma norm_eq_zero (g : G) : word_norm GG g = 0 → g = 1 :=
-begin
-  intro h,
-   
-  let lw := (list.length ∘ free_group.to_word) '' (words GG g),
-  have hl : set.nonempty lw := begin
-    simp only [set.nonempty_image_iff],
-    exact words_nonempty GG g,
-  end,
-  
-  have hk := nat.Inf_mem hl,
-  unfold word_norm at h,
-  rw h at hk,
-  simp only [set.mem_image, exists_exists_and_eq_and] at hk,
-  obtain ⟨ w, h2, h3 ⟩ := hk,
-  unfold words at h2,
-  simp only [set.mem_set_of_eq] at h2,
-  rw list.length_eq_zero at h3,
-
-  have h4 : (1 : free_group GG.gens).to_word = list.nil, {
-    unfold free_group.to_word,
-    unfold has_one.one,
-    rw ← free_group.red.nil_iff,
-    simp only [free_group.quot_lift_mk],
-    rw free_group.red.nil_iff ,
-    unfold free_group.reduce,
-  },
-  
-  rw ← h3 at h4,
-
-  have h5 : w = 1, {
-    apply free_group.to_word.inj,
-    assumption,
-  },
-
-  rw h5 at h2,
-
-  unfold of at h2,  
-  simp only [map_one] at h2,
-  exact h2.symm, 
-end
-
-@[simp] lemma norm_zero_iff_one (g : G) : word_norm GG g = 0 ↔ g = 1 :=
-begin
-  refine ⟨ norm_eq_zero GG g, _ ⟩,
-  rintro rfl,
-  apply norm_one_eq_zero,
-end
-
-theorem nat.Inf_le_Inf {s t : set ℕ} (hs : s.nonempty) (ht : s ⊆ t) : Inf t ≤ Inf s 
-:= nat.Inf_le $ ht $ nat.Inf_mem hs
-
-lemma word_norm_le_inv (x : G) : word_norm GG x⁻¹ ≤ word_norm GG x :=
-begin
-  set ws := words GG x with hws,
-  set wi := words GG x⁻¹ with hwi,
-  
-  let lw := (list.length ∘ free_group.to_word) '' ws,
-  have k : lw ⊆ (list.length ∘ free_group.to_word) '' wi),
-  {
-    intros lp h,
-    simp only [set.mem_image, exists_exists_and_eq_and] at h,
-    obtain ⟨ p , hp, hl ⟩ := h,
-    simp,
-  
-    use p⁻¹,
-
-    split,
-    { 
-       rw hws at hp,
-       unfold words at hp,
-       simp at hp,
-       unfold of at hp,
-       
-       rw hwi,
-       unfold words,
-       simp only [set.mem_set_of_eq],
-       unfold of,
-
-       simp only [map_inv, inv_inj] at hp ⊢,
-       assumption,
-    }, 
-    {
-      rw ← hl,
-      simp,
-      sorry,
-    },
-  },
-  unfold word_norm at *,
-
-  have hl : set.nonempty lw := begin
-    simp only [set.nonempty_image_iff],
-    exact words_nonempty GG x,
-  end,
-  
-  exact nat.Inf_le_Inf hl k, 
-end
-
-lemma word_norm_symm (x : G) : word_norm GG x = word_norm GG x⁻¹ :=
-begin
-  have lt : word_norm GG x⁻¹ ≤ word_norm GG x := word_norm_le_inv GG x,
-  apply le_antisymm,
-  { 
-    have h : word_norm GG x⁻¹⁻¹ ≤ word_norm GG x⁻¹ := word_norm_le_inv GG x⁻¹,
-    simp at h,
-    assumption,
-  },
-  { assumption, },
-end
-
-def word_dist (x y : G) : nat := word_norm GG (x * y⁻¹)
-
-def dist_to_norm {x y : G} : word_dist GG x y = word_norm GG (x * y⁻¹) := by refl
-
-def word_dist_self (g : G) : word_dist GG g g = 0 :=
-begin
-  rw dist_to_norm s,
+  unfold of,
   simp,
-  exact norm_one_eq_zero s,
 end
 
-def word_eq_of_edist_eq_zero : ∀ (x y : G), word_dist GG x y = 0 → x = y :=
+def words (x : G) : set (free_group (gens : set G)) := of ⁻¹' { x }
+
+def words_of {x : G} {w : free_group (gens : set G)} (h : w ∈ words x) : of w = x :=
 begin
-  intros x y,
-  intro h,
-  rw dist_to_norm at h,
-  have k := norm_eq_zero GG _ h, 
-  group at k ⊢,
+  unfold words at h,
+  simp at h,
   assumption,
 end
 
-def word_dist_comm (x y : G) : word_dist GG x y = word_dist GG y x :=
+def words_inv (x : G) : (words x) = has_inv.inv '' (words x⁻¹) :=
 begin
-  unfold word_dist,
-  rw word_norm_symm GG,
-  simp,
+  unfold words,
+  ext,
+  split, 
+  {
+    simp,
+    intro h,
+    rw ← h,
+    simp only [map_inv, of],
+  },
+  {
+    simp,
+    intro h,
+    have hk : (of x_1⁻¹)⁻¹ = x,
+    { exact inv_eq_iff_inv_eq.mp (eq.symm h) },
+    rw ← hk,
+    simp [of],
+  },
 end
 
-def word_norm_triangle (x y : G) : word_norm GG (x * y) ≤ word_norm GG x + word_norm GG y :=
+def push_inv (x : G) : (words x⁻¹) = has_inv.inv '' (words x) :=
 begin
-  set wx := words GG x with hwx,
-  set wy := words GG y with hwy,
-  set wxy := words GG (x * y) with hwxy,
-
-  let lx := (list.length ∘ free_group.to_word) '' wx,
-  have hlx : set.nonempty lx := begin
-    simp only [set.nonempty_image_iff],
-    exact words_nonempty GG x,
-  end,
-
-  let ly := (list.length ∘ free_group.to_word) '' wy,
-  have hly : set.nonempty ly := begin
-    simp only [set.nonempty_image_iff],
-    exact words_nonempty GG y,
-  end,
-
-  rcases nat.Inf_mem hlx with ⟨ px, hx2, hx3 ⟩,
-  rcases nat.Inf_mem hly with ⟨ py, hy2, hy3 ⟩,
-
-  have h : px * py ∈ words GG (x * y) := begin
-    sorry,
-  end,
-
-  unfold word_norm,
-  rw [←hx3, ←hy3],
-        
-  have k : Inf ((list.length ∘ free_group.to_word) '' (words GG (x * y))) ≤ (list.length ∘ free_group.to_word) (px * py) := begin
-    sorry,
-  end, 
-  have k2 : (list.length ∘ free_group.to_word) (px * py) ≤ (list.length ∘ free_group.to_word) px + (list.length ∘ free_group.to_word) py := begin
-    simp,
-    sorry, 
-  end,
+  have k := words_inv x⁻¹,
   finish,
 end
 
-def word_dist_triangle : ∀ (x y z : G), word_dist GG x z ≤ word_dist GG x y + word_dist GG y z :=
+def words_nonempty (x : G) : (words x).nonempty :=
 begin
-  unfold word_dist,
-  intros x y z,
-  have hxz : x * z⁻¹ = (x * y⁻¹) * (y * z⁻¹) := by group,
-  rw hxz,
-  apply word_norm_triangle GG,
+  have hk := @closure_eq_top G _,
+  unfold words,
+  unfold set.nonempty,
+  simp,
+
+  set f : (gens → G) := (λ a : (gens : set G), a) with hf,
+
+  have hr : set.range f = (gens : set G),
+  {
+    ext,
+    split,
+    { finish, },
+    { intro h,
+      use x_1,
+      use h,
+      finish, },
+  },  
+
+  have h : _ = subgroup.closure (set.range f) := free_group.lift.range_eq_closure  ,
+
+  rw hr at h,
+  rw hk at h,
+
+  rw monoid_hom.range_top_iff_surjective at h,
+ 
+  unfold of,
+
+  rw ← hf ,
+
+  exact h x,
 end
+
+def nat_norm (x : G) : nat := Inf $ free_group.nat_norm '' (words x)
+
+def norm (x : G) : ℝ := nat_norm x
+
+instance : has_norm G := ⟨norm⟩
+
+def dist (x : G) (y : G) : ℝ := ∥ x * y⁻¹ ∥
+
+instance : has_dist G := ⟨dist⟩
+
+def norm_eq (x : G) : ∥ x ∥ = nat_norm x := rfl
+
+def norm_inv_le (x : G) : ∥ x⁻¹ ∥ ≤ ∥ x ∥ :=
+begin
+  rw norm_eq, rw norm_eq,
+  norm_cast,
+
+  rw nat_norm, rw nat_norm,
+  apply nat.Inf_le_Inf,
+  {
+    have hne := words_nonempty x,
+    exact set.nonempty.image free_group.nat_norm hne,
+  },
+  {  
+    rw push_inv,
+    intros nw hnw,
+    simp at hnw,
+    simp at ⊢,
+    cases hnw with fw hfw,
+    use fw⁻¹,
+    simp,
+    refine ⟨ hfw.1, _ ⟩,
+    rw ← hfw.2,
+    symmetry,
+    have k := free_group.norm_inv fw,
+    rw free_group.norm_eq at k,
+    rw free_group.norm_eq at k,
+    norm_cast at k,
+    assumption,
+  },
+end
+
+def norm_inv (x : G) : ∥ x ∥ = ∥ x⁻¹ ∥ :=
+begin
+  have h := norm_inv_le x,
+  have hi := norm_inv_le x⁻¹,
+  simp at hi,
+  finish,
+end
+
+def dist_eq (x y : G) : dist x y = nat_norm (x * y⁻¹) := rfl
+
+def dist_self (x : G) : dist x x = 0 :=
+begin
+  rw dist_eq,
+  norm_cast,
+  
+  rw nat_norm,
+
+  suffices : Inf (free_group.nat_norm '' words (x * x⁻¹)) ≤ 0,
+  { exact le_zero_iff.mp this, },
+
+  suffices : 0 ∈ free_group.nat_norm '' words (x * x⁻¹),
+  { apply nat.Inf_le this, },
+
+  simp only [mul_right_inv, set.mem_image],
+  use 1,
+
+  split,
+  { simp [words, of], },
+  { unfold free_group.nat_norm,
+    rw list.length_eq_zero,
+    exact free_group.one_to_word, 
+  }, 
+end
+
+def dist_comm (x y : G) : dist x y = dist y x :=
+begin
+  rw dist_eq, rw dist_eq,
+  norm_cast,
+
+  set z := x * y⁻¹,
+  set zi := y * x⁻¹,
+
+  have h : zi = z⁻¹,
+  { simp only [mul_inv_rev, inv_inv], },
+
+  have hk := norm_inv z,
+  rw norm_eq at hk,
+  rw norm_eq at hk,
+  norm_cast at hk,
+  rwa h,
+end
+
+def dist_triangle (x y z : G) : (dist x z) ≤ (dist x y) + (dist y z) :=
+begin
+  rw dist_eq,
+  rw dist_eq,
+  rw dist_eq,
+  norm_cast,
+ 
+  set xz := x * z⁻¹ with hxz,
+  set xy := x * y⁻¹ with hxy,
+  set yz := y * z⁻¹ with hyz,
+
+  unfold nat_norm,
+
+  have h1 := nat.Inf_mem (by simp [words_nonempty] : (free_group.nat_norm '' words xy).nonempty),
+  have h2 := nat.Inf_mem (by simp [words_nonempty] : (free_group.nat_norm '' words yz).nonempty),
+
+  cases h1 with wxy hwxy,
+  cases h2 with wyz hwyz,
+      
+  rw ← hwyz.2,
+  rw ← hwxy.2,
+
+  have h : wxy * wyz ∈ words xz,
+  {
+    unfold words,
+    simp,
+    rw of_mul,
+    have hxyw := words_of hwxy.1,
+    have hyzw := words_of hwyz.1,
+    rw hxyw,
+    rw hyzw,
+    rw hxy,
+    rw hyz,
+    rw hxz,
+    group,
+  },
+
+  have h2 : free_group.nat_norm (wxy * wyz) ∈ free_group.nat_norm '' (words xz), 
+  { exact set.mem_image_of_mem free_group.nat_norm h, },
+
+  have h3 : Inf ( free_group.nat_norm '' words xz ) ≤ free_group.nat_norm (wxy * wyz ),
+  {
+    exact cInf_le' h2,
+  },
+   
+  have h4 : free_group.nat_norm( wxy * wyz ) ≤ wxy.nat_norm + wyz.nat_norm,
+  {
+     have h5 : ∥ wxy * wyz ∥ ≤ ∥ wxy ∥ + ∥ wyz ∥ := free_group.norm_triangle _ _,
+     rw free_group.norm_eq at h5,
+     rw free_group.norm_eq at h5,
+     rw free_group.norm_eq at h5,
+     norm_cast at h5,
+     assumption, 
+  }, 
+  
+  finish,
+end
+
+def eq_of_dist_eq_zero (x y : G) : dist x y = 0 → x = y := 
+begin
+  rw dist_eq,
+  intro h,
+  norm_cast at h,
+
+  unfold nat_norm at h,
+
+  rw nat.Inf_eq_zero at h,
+  cases h,
+  { simp at h,
+    rcases h with ⟨ w, hw1, hw2 ⟩,
+    have hk := free_group.norm_zero_eq_one w,
+    have hi : w = 1, { apply hk, rw free_group.norm_eq, norm_cast, assumption, },
+  
+    rw hi at hw1,
+  
+    unfold words at hw1,
+    simp [of] at hw1,
+    group, -- this should be simpler?
+    rw hw1,
+    group, 
+  },
+  {
+    exfalso, 
+    have hne := words_nonempty (x * y⁻¹),
+    finish,
+  },
+end
+
+instance : pseudo_metric_space G :=
+{ dist               := dist,
+  dist_self          := dist_self,
+  dist_comm          := dist_comm,
+  dist_triangle      := dist_triangle }
+
+instance : metric_space G :=
+{ eq_of_dist_eq_zero := eq_of_dist_eq_zero }
+
+end generated_group
+
