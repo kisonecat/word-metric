@@ -42,7 +42,6 @@ begin
   simp [reduce.red],
 end
 
-
 def inv_rev (w : list (α × bool)) : list (α × bool) :=
  (list.map (λ (g : α × bool), (g.fst, !g.snd)) w).reverse 
 
@@ -51,7 +50,10 @@ def inv_rev_eq {w : list (α × bool)} :=
 
 def inv_rev_length { w : list ( α × bool ) } : (inv_rev w).length = w.length:=
 begin
-  sorry,
+  induction w,
+  { finish, },
+  unfold inv_rev,
+  { finish, },
 end
 
 def inv_rev_involutive { w : list ( α × bool ) } : (inv_rev (inv_rev w) = w) :=
@@ -67,145 +69,6 @@ begin
 
  rw h,
  simp, 
-end
-
-def inv_rev_cons {hd : α × bool} {tl : list (α × bool)} : inv_rev (hd :: tl) = inv_rev( tl) ++ [(hd.fst, !hd.snd)] :=
-begin
-  sorry,
-end
-
-def word_reduced {x : free_group α} : reduce x.to_word = x.to_word := 
-begin
-  apply reduce.min,
-  induction x,
-  induction x,
-
-  { finish, },
-
-  unfold to_word,
-  rw free_group.reduce.idem,
-
-  { finish, },
-end
-
-def reduced_red {w : list (α × bool)} (h : reduce w = w) : red (reduce w) w :=
-begin
-  induction w,
-  { finish, },
-  { finish, },
-end
-
-def red_reduced {w : list (α × bool)} (h : red (reduce w) w) : reduce w = w :=
-begin
-  apply reduce.min,
-  assumption,
-end
-
-def irreducible (w : list (α × bool)) : Prop := w.length = (reduce w).length
-
-def irreducible_cons {hd : α × bool} {tl : list (α × bool)} (h : irreducible (hd :: tl)) : irreducible tl := 
-begin
-  sorry,
-end
-
-def reduced_irreducible {w : list (α × bool)} (h : reduce w = w) : irreducible w :=
-begin
-  have hl : w.length = w.length := rfl,
-  nth_rewrite 1 ←h at hl,
-  exact hl,
-end
-
-def rev_step_reduces {L₁ L₂ : list (α × bool)} (h : red.step L₁ L₂) : (red.step L₁.reverse L₂.reverse) :=
-begin
-  sorry, 
-end
-
-def list_inv (w : list (α × bool)) : list (α × bool) :=
- (list.map (λ (g : α × bool), (g.fst, !g.snd)) w) 
-
-def inv_step_reduces {L₁ L₂ : list (α × bool)} (h : red.step L₁ L₂) : (red.step (list_inv L₁) (list_inv L₂)) :=
-begin
-  sorry, 
-end
-
-def rev_reduces {L₁ L₂ : list (α × bool)} (h : red L₁ L₂) : (red L₁.reverse L₂.reverse) :=
-begin
-  induction h with h1 h2 h3 h4,
-  { finish, },
-  have h5 := rev_step_reduces h4,
-  apply red.trans,
-  { exact h_ih, },
-  exact red.step.to_red h5,
-end
-
-
-def irreducible_reduced {w : list (α × bool)} (h : irreducible w) : (reduce w = w) :=
-begin
-  have hr : red w (reduce w) := free_group.reduce.red,
-  have hs := free_group.red.sublist hr,
-  have hl := list.eq_of_sublist_of_length_eq hs h.symm,
-  assumption,
-end
-
-def inv_rev_irreducible {w : list (α × bool)} (h : irreducible w) : irreducible (inv_rev w) :=
-begin
-  apply reduced_irreducible,
-  apply  red_reduced,
-  have k := inv_rev_reduces (reduced_red (irreducible_reduced h)),
-  
-  have h1 := irreducible_reduced h,
-end
-
-
-def inv_rev_reduced {w : list (α × bool)} (h : reduce w = w) : reduce (inv_rev w) = (inv_rev w) := irreducible_reduced $ inv_rev_irreducible $ reduced_irreducible h
-
-def mk_word {w : list (α × bool)} (h : reduce w = w) : (mk w).to_word = w :=
-begin
-  rw ← h, 
-  rw free_group.reduce.self,
-  unfold to_word,
-  simp,
-end
-
-def reduce_inv_rev {w : list (α × bool)} : reduce (inv_rev w) = inv_rev (reduce w) :=
-begin
-  have k : red w (reduce w) := reduce.red,
-  have k2 := inv_rev_reduces k
---def inv_rev_reduces {L₁ L₂ : list (α × bool)} (h : red L₁ L₂) : (red (inv_rev L₁) (inv_rev L₂)) :=
-end
-
-def inv_to_word (x : free_group α) : (x⁻¹).to_word = inv_rev (x.to_word) :=
-begin
-  -- unfold to_word,
-  induction x,
-  { unfold to_word,
-    simp,
-    have h : reduce (inv_rev x) = inv_rev (reduce x),
-    { sorry, },
-    finish, },
-  { finish, },
-end
-
-def inv_rev_reduces {L₁ L₂ : list (α × bool)} (h : red L₁ L₂) : (red (inv_rev L₁) (inv_rev L₂)) :=
-begin
-  unfold inv_rev,
-  apply rev_reduces,
-  
-  induction h with h1 h2 h3 h4,
-  { finish, },
-
-  have h5 := inv_step_reduces h4,
-  apply red.trans,
-  { exact h_ih, },
-  exact red.step.to_red h5,
-end
-
-def reduces_inv_rev {L₁ L₂ : list (α × bool)} (h : red (inv_rev L₁) (inv_rev L₂)) : (red L₁ L₂) :=
-begin
-  have h2 : red (inv_rev (inv_rev L₁)) (inv_rev (inv_rev L₂)) := inv_rev_reduces h,
-  rw inv_rev_involutive at h2,
-  rw inv_rev_involutive at h2,
-  assumption,
 end
 
 def inv_to_word_le (x : free_group α) : (x⁻¹).to_word.length ≤ x.to_word.length :=
