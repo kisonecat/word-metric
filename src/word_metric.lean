@@ -49,8 +49,8 @@ def words (x : G) : set (free_group (gens : set G)) := of ⁻¹' { x }
 def words_of {x : G} {w : free_group (gens : set G)} (h : w ∈ words x) : of w = x :=
 begin
   unfold words at h,
-  simp at h,
-  assumption,
+  simp only [set.mem_preimage, set.mem_singleton_iff] at h,
+  exact h, 
 end
 
 def words_inv (x : G) : (words x) = has_inv.inv '' (words x⁻¹) :=
@@ -59,13 +59,13 @@ begin
   ext,
   split, 
   {
-    simp,
+    simp only [set.mem_preimage, set.mem_singleton_iff, set.image_inv, set.mem_inv],
     intro h,
     rw ← h,
     simp only [map_inv, of],
   },
   {
-    simp,
+    simp only [set.image_inv, set.mem_inv, set.mem_preimage, set.mem_singleton_iff],
     intro h,
     have hk : (of x_1⁻¹)⁻¹ = x,
     { exact inv_eq_iff_inv_eq.mp (eq.symm h) },
@@ -85,7 +85,7 @@ begin
   have hk := @closure_eq_top G _,
   unfold words,
   unfold set.nonempty,
-  simp,
+  simp only [set.mem_preimage, set.mem_singleton_iff],
 
   set f : (gens → G) := (λ a : (gens : set G), a) with hf,
 
@@ -140,8 +140,8 @@ begin
   {  
     rw push_inv,
     intros nw hnw,
-    simp at hnw,
-    simp at ⊢,
+    simp only [set.mem_image] at hnw,
+    simp only [set.image_inv, set.mem_image, set.mem_inv],
     cases hnw with fw hfw,
     use fw⁻¹,
     simp,
@@ -183,7 +183,7 @@ begin
   use 1,
 
   split,
-  { simp [words, of], },
+  { simp only [words, of], },
   { unfold free_group.nat_norm,
     rw list.length_eq_zero,
     exact free_group.one_to_word, 
@@ -233,7 +233,7 @@ begin
   have h : wxy * wyz ∈ words xz,
   {
     unfold words,
-    simp,
+    simp only [set.mem_preimage, set.mem_singleton_iff],
     rw of_mul,
     have hxyw := words_of hwxy.1,
     have hyzw := words_of hwyz.1,
@@ -276,7 +276,7 @@ begin
 
   rw nat.Inf_eq_zero at h,
   cases h,
-  { simp at h,
+  { simp only [set.mem_image] at h,
     rcases h with ⟨ w, hw1, hw2 ⟩,
     have hk := free_group.norm_zero_eq_one w,
     have hi : w = 1, { apply hk, rw free_group.norm_eq, norm_cast, assumption, },

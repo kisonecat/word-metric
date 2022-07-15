@@ -63,9 +63,9 @@ begin
  unfold inv_rev,
  rw list.map_reverse,
  rw list.map_map,
- simp,
+ simp only [list.map, function.comp_app, bnot_bnot, prod.mk.eta, list.reverse_reverse, eq_self_iff_true, true_and],
  have h : ((λ (g : α × bool), (g.fst, !g.snd)) ∘ (λ (g : α × bool), (g.fst, !g.snd))) = id,
- { ext; simp, },
+ { funext, simp, },
 
  rw h,
  simp, 
